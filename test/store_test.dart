@@ -32,50 +32,44 @@ void main() {
       store = new Store();
     });
 
-    test('should trigger with itself as the payload', () async {
-      Completer c = new Completer();
-      store.listen((Store payload) {
-        expect(payload, equals(store));
-        c.complete();
-      });
-
-      store.trigger();
-      return c.future;
+    tearDown(() {
+      store.dispose();
     });
 
-    test('should support stream transforms', () async {
+    test('should trigger with itself as the payload', () {
+      store.listen(expectAsync((Store payload) {
+        expect(payload, store);
+      }));
+
+      store.trigger();
+    });
+
+    test('should support stream transforms', () {
       // ensure that multiple trigger executions emit
       // exactly 2 throttled triggers to external listeners
       // (1 for the initial trigger and 1 as the aggregate of
       // all others that occurred within the throttled duration)
       int count = 0;
-      store = new Store.withTransformer(
-          new Throttler(const Duration(milliseconds: 30)));
-      store.listen((Store payload) {
-        count += 1;
-      });
+      store = new Store.withTransformer(new Throttler(const Duration(milliseconds: 30)));
+      store.listen(expectAsync((Store payload) {}, count: 2));
 
       store.trigger();
       store.trigger();
       store.trigger();
       store.trigger();
       store.trigger();
-      await nextTick(60);
-      expect(count, equals(2));
     });
 
     test('should trigger in response to an action', () {
       Action _action = new Action();
       store.triggerOnAction(_action);
-      store.listen((Store payload) => expectAsync((payload) {
-            expect(payload, equals(store));
-          }));
+      store.listen(expectAsync((Store payload) {
+        expect(payload, store);
+      }));
       _action();
     });
 
-    test(
-        'should execute a given method and then trigger in response to an action',
-        () {
+    test('should execute a given method and then trigger in response to an action', () {
       Action _action = new Action();
       bool methodCalled = false;
       syncCallback(_) {
@@ -83,16 +77,14 @@ void main() {
       }
 
       store.triggerOnAction(_action, syncCallback);
-      store.listen((Store payload) => expectAsync((payload) {
-            expect(payload, equals(store));
-            expect(methodCalled, equals(true));
-          }));
+      store.listen(expectAsync((Store payload) {
+        expect(payload, store);
+        expect(methodCalled, isTrue);
+      }));
       _action();
     });
 
-    test(
-        'should execute a given async method and then trigger in response to an action',
-        () {
+    test('should execute a given async method and then trigger in response to an action', () {
       Action _action = new Action();
       bool afterTimer = false;
       asyncCallback(_) async {
@@ -101,24 +93,70 @@ void main() {
       }
 
       store.triggerOnAction(_action, asyncCallback);
-      store.listen((Store payload) => expectAsync((payload) {
-            expect(payload, equals(store));
-            expect(afterTimer, equals(true));
-          }));
+      store.listen(expectAsync((Store payload) {
+        expect(payload, store);
+        expect(afterTimer, isTrue);
+      }));
       _action();
     });
 
-    test(
-        'should execute a given method and then trigger in response to an action with payload',
-        () {
+    test('should execute a given method and then trigger in response to an action with payload', () {
       Action<num> _action = new Action<num>();
       num counter = 0;
       store.triggerOnAction(_action, (payload) => counter = payload);
-      store.listen((Store payload) => expectAsync((payload) {
-            expect(payload, equals(store));
-            expect(counter, equals(17));
-          }));
+      store.listen(expectAsync((Store payload) {
+        expect(payload, store);
+        expect(counter, 17);
+      }));
       _action(17);
+    });
+
+    test('cleans up its StreamController on dispose', () {
+      bool afterDispose = false;
+
+      store.listen(expectAsync((Store payload) async {
+        // Safety check to avoid infinite trigger loop
+        expect(afterDispose, isFalse);
+
+        // Dispose after first trigger
+        await store.dispose();
+        afterDispose = true;
+
+        // This should no longer fire after dispose
+        store.trigger();
+      }));
+
+      store.trigger();
+    });
+
+    test('cleans up its ActionSubscriptions on dispose', () {
+      bool afterDispose = false;
+
+      Action _action = new Action();
+      store.triggerOnAction(_action);
+      store.listen(expectAsync((Store payload) async {
+        // Safety check to avoid infinite trigger loop
+        expect(afterDispose, isFalse);
+
+        // Dispose after first trigger
+        await store.dispose();
+        afterDispose = true;
+
+        // This should no longer fire after dispose
+        _action();
+      }));
+
+      _action();
+    });
+
+    test('does not allow adding action subscriptions after dispose', () async {
+      await store.dispose();
+      expect(() => store.triggerOnAction(new Action()), throwsStateError);
+    });
+
+    test('does not allow listening after dispose', () async {
+      await store.dispose();
+      expect(() => store.listen((_) {}), throwsStateError);
     });
   });
 }

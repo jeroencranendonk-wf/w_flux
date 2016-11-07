@@ -11,6 +11,7 @@ authors:
 homepage: https://github.com/Workiva/w_flux
 dependencies:
   react: "^3.0.0"
+  w_common: "^0.2.0"
 dev_dependencies:
   coverage: "^0.7.2"
   dart_dev: "^1.0.0"
