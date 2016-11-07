@@ -17,12 +17,10 @@ library w_flux.test.store_test;
 
 import 'dart:async';
 
-import 'package:w_flux/src/action.dart';
-import 'package:w_flux/src/store.dart';
 import 'package:rate_limit/rate_limit.dart';
 import 'package:test/test.dart';
-
-import 'utils.dart';
+import 'package:w_flux/src/action.dart';
+import 'package:w_flux/src/store.dart';
 
 void main() {
   group('Store', () {
@@ -39,7 +37,7 @@ void main() {
     test('should trigger with itself as the payload', () {
       store.listen(expectAsync((Store payload) {
         expect(payload, store);
-      }));
+      }) as StoreHandler);
 
       store.trigger();
     });
@@ -49,9 +47,9 @@ void main() {
       // exactly 2 throttled triggers to external listeners
       // (1 for the initial trigger and 1 as the aggregate of
       // all others that occurred within the throttled duration)
-      int count = 0;
-      store = new Store.withTransformer(new Throttler(const Duration(milliseconds: 30)));
-      store.listen(expectAsync((Store payload) {}, count: 2));
+      store = new Store.withTransformer(
+          new Throttler(const Duration(milliseconds: 30)));
+      store.listen(expectAsync((Store payload) {}, count: 2) as StoreHandler);
 
       store.trigger();
       store.trigger();
@@ -65,11 +63,13 @@ void main() {
       store.triggerOnAction(_action);
       store.listen(expectAsync((Store payload) {
         expect(payload, store);
-      }));
+      }) as StoreHandler);
       _action();
     });
 
-    test('should execute a given method and then trigger in response to an action', () {
+    test(
+        'should execute a given method and then trigger in response to an action',
+        () {
       Action _action = new Action();
       bool methodCalled = false;
       syncCallback(_) {
@@ -80,11 +80,13 @@ void main() {
       store.listen(expectAsync((Store payload) {
         expect(payload, store);
         expect(methodCalled, isTrue);
-      }));
+      }) as StoreHandler);
       _action();
     });
 
-    test('should execute a given async method and then trigger in response to an action', () {
+    test(
+        'should execute a given async method and then trigger in response to an action',
+        () {
       Action _action = new Action();
       bool afterTimer = false;
       asyncCallback(_) async {
@@ -96,18 +98,20 @@ void main() {
       store.listen(expectAsync((Store payload) {
         expect(payload, store);
         expect(afterTimer, isTrue);
-      }));
+      }) as StoreHandler);
       _action();
     });
 
-    test('should execute a given method and then trigger in response to an action with payload', () {
+    test(
+        'should execute a given method and then trigger in response to an action with payload',
+        () {
       Action<num> _action = new Action<num>();
       num counter = 0;
       store.triggerOnAction(_action, (payload) => counter = payload);
       store.listen(expectAsync((Store payload) {
         expect(payload, store);
         expect(counter, 17);
-      }));
+      }) as StoreHandler);
       _action(17);
     });
 
@@ -124,7 +128,7 @@ void main() {
 
         // This should no longer fire after dispose
         store.trigger();
-      }));
+      }) as StoreHandler);
 
       store.trigger();
     });
@@ -144,7 +148,7 @@ void main() {
 
         // This should no longer fire after dispose
         _action();
-      }));
+      }) as StoreHandler);
 
       _action();
     });

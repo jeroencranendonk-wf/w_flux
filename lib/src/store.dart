@@ -43,7 +43,7 @@ class Store extends Disposable {
   final StreamController<Store> _streamController;
 
   /// Broadcast stream of "data updated" events. Listened to in [listen].
-  Stream _stream;
+  Stream<Store> _stream;
 
   /// Registered Action subscriptions.
   final List<ActionSubscription> _actionSubscriptions = [];
@@ -63,12 +63,14 @@ class Store extends Disposable {
   /// As an example, [transformer] could be used to throttle the number of
   /// triggers this [Store] emits for state that may update extremely frequently
   /// (like scroll position).
-  Store.withTransformer(StreamTransformer<Store, dynamic> transformer)
+  Store.withTransformer(StreamTransformer<dynamic, dynamic> transformer)
       : _streamController = new StreamController<Store>() {
     manageStreamController(_streamController);
 
     // apply a transform to the stream if supplied
-    _stream = _streamController.stream.transform(transformer).asBroadcastStream();
+    _stream = _streamController.stream
+        .transform(transformer as StreamTransformer<Store, dynamic>)
+        .asBroadcastStream() as Stream<Store>;
   }
 
   /// Cleans up Action subscriptions on dispose.
@@ -125,12 +127,14 @@ class Store extends Disposable {
   /// data has been mutated, [onData] will be called.
   ///
   /// If the `Store` has been disposed, this method throws a [StateError].
-  StreamSubscription<Store> listen(StoreHandler onData, {Function onError, void onDone(), bool cancelOnError}) {
+  StreamSubscription<Store> listen(StoreHandler onData,
+      {Function onError, void onDone(), bool cancelOnError}) {
     if (isDisposed) {
       throw new StateError('Store has been disposed');
     }
 
-    StreamSubscription sub = _stream.listen(onData, onError: onError, onDone: onDone, cancelOnError: cancelOnError);
+    StreamSubscription<Store> sub = _stream.listen(onData,
+        onError: onError, onDone: onDone, cancelOnError: cancelOnError);
     manageStreamSubscription(sub);
     return sub;
   }
