@@ -50,7 +50,7 @@ void main() {
 
       // Cause store to trigger, wait for it to propagate
       store.trigger();
-      await nextTick();
+      await nextTick(100);
       expect(component.numberOfRedraws, 1);
 
       // Simulate un-mounting the component
